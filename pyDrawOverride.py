@@ -36,17 +36,29 @@ def drawCallback(context, data):
 
 
 class DrawOverrideNode(omui.MPxLocatorNode):
+    """Just a node to carry the DrawOverride below"""
+
     id = om.MTypeId(0x80008)
     drawDbClassification = "drawdb/geometry/DrawOverrideNode"
     drawRegistrantId = "DrawOverrideNodePlugin"
 
-    @staticmethod
-    def creator():
-        return DrawOverrideNode()
+    size = None  # The size of the foot
 
-    @staticmethod
-    def initialize():
-        pass
+    @classmethod
+    def creator(cls):
+        return cls()
+
+    @classmethod
+    def initialize(cls):
+        unitFn = om.MFnUnitAttribute()
+
+        cls.size = unitFn.create("size", "sz", om.MFnUnitAttribute.kDistance)
+        unitFn.default = om.MDistance(1.0)
+        unitFn.keyable = True
+        unitFn.storable = True
+        unitFn.writable = True
+
+        om.MPxNode.addAttribute(cls.size)
 
     def __init__(self):
         omui.MPxLocatorNode.__init__(self)
@@ -86,6 +98,7 @@ class DrawAgent(object):
 
         if self.mShader is not None:
             self.mShader.bind(context)
+            self.mShader.setParameter("scale", scale)
             self.mShader.activatePass(context, 0)
 
     def drawBoundingBox(self, context):
@@ -98,8 +111,11 @@ class DrawAgent(object):
             omr.MRenderUtilities.drawSimpleMesh(context,
                                                 self.mBoundingboxVertexBuffer,
                                                 self.mBoundingboxIndexBuffer,
-                                                omr.MGeometry.kLines,
-                                                0, 24)
+                                                # omr.MGeometry.kPoints,
+                                                # omr.MGeometry.kLines,
+                                                # omr.MGeometry.kTriangles,
+                                                omr.MGeometry.kTriangleStrip,
+                                                0, 3 * 12)
 
     def endDraw(self, context):
         if self.mShader is not None:
@@ -110,7 +126,7 @@ class DrawAgent(object):
             shaderMgr = omr.MRenderer.getShaderManager()
             if shaderMgr is not None:
                 dirname = os.path.dirname(__file__)
-                fname = os.path.join(dirname, "noGeometryShader.ogsfx")
+                fname = os.path.join(dirname, "withGeometryShader.ogsfx")
                 self.mShader = shaderMgr.getEffectsFileShader(
                     fname, "", useEffectCache=False
                 )
@@ -188,10 +204,10 @@ class DrawOverrideDrawOverride(omr.MPxDrawOverride):
         return True
 
     def boundingBox(self, objPath, cameraPath):
-        corner1 = om.MPoint(-0.17, 0.0, -0.7)
-        corner2 = om.MPoint(0.17, 0.0, 0.3)
+        corner1 = om.MPoint(-0.5, 0.5, -0.5)
+        corner2 = om.MPoint(0.5, 0.5, 0.5)
 
-        multiplier = 1
+        multiplier = self.getMultiplier(objPath)
         corner1 *= multiplier
         corner2 *= multiplier
 
@@ -204,12 +220,21 @@ class DrawOverrideDrawOverride(omr.MPxDrawOverride):
     def disableInternalBoundingBoxDraw(self):
         return True
 
+    def getMultiplier(self, objPath):
+        node = objPath.node()
+        plug = om.MPlug(node, DrawOverrideNode.size)
+
+        if not plug.isNull:
+            sizeVal = plug.asMDistance()
+
+        return sizeVal.asCentimeters()
+
     def prepareForDraw(self, objPath, cameraPath, frameContext, oldData):
         data = oldData
         if not isinstance(data, DrawOverrideData):
             data = DrawOverrideData()
 
-        data.fMultiplier = 1
+        data.fMultiplier = self.getMultiplier(objPath)
         color = omr.MGeometryUtilities.wireframeColor(objPath)
         data.fColor = [color.r, color.g, color.b]
 

@@ -7,11 +7,11 @@ uniform mat4 gPXf : Projection;
 
 attribute VS_INPUT {
     vec3 inPosition : POSITION;
-    vec2 inUVset0 : TEXCOORD0;
     vec3 inNormal : NORMAL;
 };
 
 attribute VS_TO_GEO {
+    vec3 vPosition : POSITION;
     vec3 vNormal : NORMAL;
 };
 
@@ -23,24 +23,29 @@ attribute PS_OUT {
     vec4 colorOut : COLOR0;
 };
 
-uniform vec4 diffuseColor = { 0.5, 0.0, 0.5, 1.0 };
+uniform float scale = { 1.0 };
+
 
 GLSLShader ShaderVertex {
     void main() {
-        geo_out.vNormal = (world * vec4(inNormal, 1.0)).xyz;
-        gl_Position = gWVPXf*vec4(inPosition, 1.0);
+        mat4 scaleMat = mat4(scale, 0, 0, 0,
+                             0, scale, 0, 0,
+                             0, 0, scale, 0,
+                             0, 0, 0, 1);
+
+        vs_out.vPosition = normalize(world * vec4(inPosition, 1.0)).xyz;
+        vs_out.vNormal = normalize(world * vec4(inNormal, 1.0)).xyz;
+        gl_Position = scaleMat * gWVPXf * vec4(inPosition, 1.0);
     }
 }
 
-GLSLShader ShaderGeometry
-{
+GLSLShader ShaderGeometry {
     layout(triangles_adjacency) in;
-    layout(triangle_strip, max_vertices = 15) out;
+    layout(line_strip, max_vertices = 15) out;
 
     void main()
     {
-        // Output center face:
-        geo_out.gColor = diffuseColor;
+        geo_out.gColor = vec4(geo_in[0].vPosition.xyz, 1.0);
         gl_Position = gl_in[0].gl_Position;
         EmitVertex();
         gl_Position = gl_in[2].gl_Position;
@@ -67,7 +72,7 @@ technique Main
         string drawContext = "colorPass";
     >
     {
-        VertexShader (in VS_INPUT, out VS_TO_GEO geo_out) = ShaderVertex;
+        VertexShader (in VS_INPUT, out VS_TO_GEO vs_out) = ShaderVertex;
         GeometryShader (in VS_TO_GEO geo_in, out GEO_TO_PS geo_out) = ShaderGeometry;
         PixelShader (in GEO_TO_PS ps_in, out PS_OUT) = ShaderPixel;
     }
