@@ -126,7 +126,7 @@ class DrawAgent(object):
             shaderMgr = omr.MRenderer.getShaderManager()
             if shaderMgr is not None:
                 dirname = os.path.dirname(__file__)
-                fname = os.path.join(dirname, "withGeometryShader.ogsfx")
+                fname = os.path.join(dirname, "noGeometryShader.ogsfx")
                 self.mShader = shaderMgr.getEffectsFileShader(
                     fname, "", useEffectCache=False
                 )
