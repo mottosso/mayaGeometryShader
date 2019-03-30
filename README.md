@@ -33,3 +33,7 @@ And presto! What was once drawn is drawn no more. It's gone, vanished. As though
 ### Why?
 
 I would very much like for the geometry shader to output *something*, but I cannot. Any ideas?
+
+Here's the geometry shader at work in the `glslShader` plug-in and `TesselationExample.ogsfx` example. So clearly, it does work. The only question is, how?
+
+![glslGeo2](https://user-images.githubusercontent.com/2152766/55281512-82868b00-532d-11e9-924f-86411addade7.gif)
