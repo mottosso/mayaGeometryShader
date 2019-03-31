@@ -1,4 +1,3 @@
-import os
 import ctypes
 import maya.api.OpenMaya as om
 import maya.api.OpenMayaUI as omui
@@ -6,11 +5,8 @@ import maya.api.OpenMayaRender as omr
 
 from maya import cmds
 
-# Plug-in aren't imported like normal Python modules,
-# but rather read as plain-text. This compensates for that.
-__file__ = cmds.pluginInfo("pyGeometryOverride", path=True, query=True)
-
 drawAgent = None
+effect = None
 
 
 def drawCallback(context, data):
@@ -33,6 +29,28 @@ def drawCallback(context, data):
         drawAgent.beginDraw(context, color, multiplier)
         drawAgent.drawBoundingBox(context)
         drawAgent.endDraw(context)
+
+
+def install():
+    cmds.loadPlugin(__file__)
+    return DrawOverrideNode
+
+
+def uninstall():
+    cmds.unloadPlugin(__name__)
+
+
+def reinstall():
+    scene = cmds.file(sceneName=True, query=True)
+    cmds.file(new=True, force=True)
+
+    try:
+        uninstall()
+        install()
+    finally:
+
+        if scene:
+            cmds.file(scene, open=True, force=True)
 
 
 class DrawOverrideNode(omui.MPxLocatorNode):
@@ -122,14 +140,21 @@ class DrawAgent(object):
             self.mShader.unbind(context)
 
     def initShader(self):
-        if self.mShader is None:
+        global effect
+
+        if self.mShader is None or effect:
+
+            if effect is None:
+                return False
+
+            print("Recreating shader..")
             shaderMgr = omr.MRenderer.getShaderManager()
             if shaderMgr is not None:
-                dirname = os.path.dirname(__file__)
-                fname = os.path.join(dirname, "noGeometryShader.ogsfx")
                 self.mShader = shaderMgr.getEffectsFileShader(
-                    fname, "", useEffectCache=False
+                    effect, "", useEffectCache=False
                 )
+
+            effect = None
 
         return self.mShader is not None
 
@@ -242,6 +267,14 @@ class DrawOverrideDrawOverride(omr.MPxDrawOverride):
 
 
 def initializePlugin2(obj):
+
+    # Register the imported Python module, rather than
+    # read the file as plain-text which is the norm.
+
+    this = __import__("pyDrawOverride")
+    DrawOverrideNode = this.DrawOverrideNode
+    DrawOverrideDrawOverride = this.DrawOverrideDrawOverride
+
     plugin = om.MFnPlugin(obj, "Autodesk", "3.0", "Any")
     plugin.registerNode("DrawOverrideNode",
                         DrawOverrideNode.id,
